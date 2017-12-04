@@ -211,7 +211,7 @@
                 <debug>1</debug>
                 <option>
                     <name>CCOptimizationNoSizeConstraints</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>CCDefines</name>
@@ -278,7 +278,7 @@
                 <option>
                     <name>CCAllowList</name>
                     <version>1</version>
-                    <state>10010100</state>
+                    <state>11111110</state>
                 </option>
                 <option>
                     <name>CCDebugInfo</name>
@@ -344,6 +344,7 @@
                     <name>CCIncludePath2</name>
                     <state>$PROJ_DIR$\..\Inc</state>
                     <state>$PROJ_DIR$\..\Drivers\CMSIS\Device\ST\STM32F3xx\Include</state>
+                    <state>$PROJ_DIR$\..\Drivers\CMSIS\Include</state>
                     <state>$PROJ_DIR$\..\Drivers\STM32F3xx_HAL_Driver\Inc</state>
                     <state>$PROJ_DIR$\..\Drivers\BSP\STM32F3348-Discovery</state>
                     <state>$PROJ_DIR$\..\Drivers\BSP\Components\Common</state>
@@ -364,16 +365,16 @@
                 </option>
                 <option>
                     <name>CCOptLevel</name>
-                    <state>2</state>
+                    <state>3</state>
                 </option>
                 <option>
                     <name>CCOptStrategy</name>
                     <version>0</version>
-                    <state>1</state>
+                    <state>2</state>
                 </option>
                 <option>
                     <name>CCOptLevelSlave</name>
-                    <state>2</state>
+                    <state>3</state>
                 </option>
                 <option>
                     <name>CompilerMisraRules98</name>
@@ -432,7 +433,7 @@
                 <option>
                     <name>CCOptStrategySlave</name>
                     <version>0</version>
-                    <state>1</state>
+                    <state>2</state>
                 </option>
                 <option>
                     <name>CCGuardCalls</name>
@@ -811,7 +812,8 @@
                 </option>
                 <option>
                     <name>IlinkAdditionalLibs</name>
-                    <state></state>
+                    <state>C:\Projekty_soft\Sterownik\Drivers\CMSIS\Lib\ARM\arm_cortexM4l_math.lib</state>
+                    <state>C:\Projekty_soft\Sterownik\Drivers\CMSIS\Lib\ARM\arm_cortexM4lf_math.lib</state>
                 </option>
                 <option>
                     <name>IlinkOverrideProgramEntryLabel</name>
@@ -1030,6 +1032,291 @@
         </file>
     </group>
     <group>
+        <name>Driver</name>
+        <group>
+            <name>EWARM</name>
+            <file>
+                <name>$PROJ_DIR$\startup_stm32f334x8.s</name>
+            </file>
+        </group>
+        <group>
+            <name>User</name>
+            <file>
+                <name>$PROJ_DIR$\..\Inc\control_defines.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\Src\main.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\Src\stm32f3xx_hal_msp.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\Src\stm32f3xx_it.c</name>
+                <configuration>
+                    <name>STM32F3348-Discovery</name>
+                    <settings>
+                        <name>ICCARM</name>
+                        <data>
+                            <version>34</version>
+                            <wantNonLocal>0</wantNonLocal>
+                            <debug>1</debug>
+                            <option>
+                                <name>CCOptimizationNoSizeConstraints</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>CCDefines</name>
+                                <state>STM32F334x8</state>
+                                <state>USE_HAL_DRIVER</state>
+                                <state>USE_STM32F3348_DISCO</state>
+                            </option>
+                            <option>
+                                <name>CCPreprocFile</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCPreprocComments</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCPreprocLine</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCListCFile</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCListCMnemonics</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCListCMessages</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCListAssFile</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCListAssSource</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCEnableRemarks</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCDiagSuppress</name>
+                                <state></state>
+                            </option>
+                            <option>
+                                <name>CCDiagRemark</name>
+                                <state></state>
+                            </option>
+                            <option>
+                                <name>CCDiagWarning</name>
+                                <state></state>
+                            </option>
+                            <option>
+                                <name>CCDiagError</name>
+                                <state></state>
+                            </option>
+                            <option>
+                                <name>CCObjPrefix</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>CCAllowList</name>
+                                <version>1</version>
+                                <state>11111110</state>
+                            </option>
+                            <option>
+                                <name>CCDebugInfo</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>IEndianMode</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>IProcessor</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>IExtraOptionsCheck</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>IExtraOptions</name>
+                                <state></state>
+                            </option>
+                            <option>
+                                <name>CCLangConformance</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCSignedPlainChar</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>CCRequirePrototypes</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>CCDiagWarnAreErr</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCCompilerRuntimeInfo</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>IFpuProcessor</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>OutputFile</name>
+                                <state>$FILE_BNAME$.o</state>
+                            </option>
+                            <option>
+                                <name>CCLibConfigHeader</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>PreInclude</name>
+                                <state></state>
+                            </option>
+                            <option>
+                                <name>CompilerMisraOverride</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCIncludePath2</name>
+                                <state>$PROJ_DIR$\..\Inc</state>
+                                <state>$PROJ_DIR$\..\Drivers\CMSIS\Device\ST\STM32F3xx\Include</state>
+                                <state>$PROJ_DIR$\..\Drivers\CMSIS\Include</state>
+                                <state>$PROJ_DIR$\..\Drivers\STM32F3xx_HAL_Driver\Inc</state>
+                                <state>$PROJ_DIR$\..\Drivers\BSP\STM32F3348-Discovery</state>
+                                <state>$PROJ_DIR$\..\Drivers\BSP\Components\Common</state>
+                                <state>$PROJ_DIR$\..\Utilities\Log</state>
+                                <state>$PROJ_DIR$\..\Utilities\CPU</state>
+                            </option>
+                            <option>
+                                <name>CCStdIncCheck</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCCodeSection</name>
+                                <state>.ccmram</state>
+                            </option>
+                            <option>
+                                <name>IProcessorMode2</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>CCOptLevel</name>
+                                <state>3</state>
+                            </option>
+                            <option>
+                                <name>CCOptStrategy</name>
+                                <version>0</version>
+                                <state>2</state>
+                            </option>
+                            <option>
+                                <name>CCOptLevelSlave</name>
+                                <state>3</state>
+                            </option>
+                            <option>
+                                <name>CompilerMisraRules98</name>
+                                <version>0</version>
+                                <state>1000111110110101101110011100111111101110011011000101110111101101100111111111111100110011111001110111001111111111111111111111111</state>
+                            </option>
+                            <option>
+                                <name>CompilerMisraRules04</name>
+                                <version>0</version>
+                                <state>111101110010111111111000110111111111111111111111111110010111101111010101111111111111111111111111101111111011111001111011111011111111111111111</state>
+                            </option>
+                            <option>
+                                <name>CCPosIndRopi</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCPosIndRwpi</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCPosIndNoDynInit</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>IccLang</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>IccCDialect</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>IccAllowVLA</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>IccStaticDestr</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>IccCppInlineSemantics</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>IccCmsis</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>IccFloatSemantics</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCNoLiteralPool</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCOptStrategySlave</name>
+                                <version>0</version>
+                                <state>2</state>
+                            </option>
+                            <option>
+                                <name>CCEncSource</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCEncOutput</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>CCEncOutputBom</name>
+                                <state>1</state>
+                            </option>
+                            <option>
+                                <name>CCEncInput</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>IccExceptions2</name>
+                                <state>0</state>
+                            </option>
+                            <option>
+                                <name>IccRTTI2</name>
+                                <state>0</state>
+                            </option>
+                        </data>
+                    </settings>
+                </configuration>
+            </file>
+        </group>
+    </group>
+    <group>
         <name>Drivers</name>
         <group>
             <name>BSP</name>
@@ -1096,27 +1383,6 @@
                     <name>$PROJ_DIR$\..\Drivers\STM32F3xx_HAL_Driver\Src\stm32f3xx_hal_spi.c</name>
                 </file>
             </group>
-        </group>
-    </group>
-    <group>
-        <name>Example</name>
-        <group>
-            <name>EWARM</name>
-            <file>
-                <name>$PROJ_DIR$\startup_stm32f334x8.s</name>
-            </file>
-        </group>
-        <group>
-            <name>User</name>
-            <file>
-                <name>$PROJ_DIR$\..\Src\main.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\Src\stm32f3xx_hal_msp.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\Src\stm32f3xx_it.c</name>
-            </file>
         </group>
     </group>
 </project>

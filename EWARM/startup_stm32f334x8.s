@@ -69,6 +69,14 @@ __vector_table
         DCD     sfe(CSTACK)
         DCD     Reset_Handler             ; Reset Handler
 
+        SECTION .intvec_CCMRAM:CODE:ROOT(2)
+
+        PUBLIC __vector_table_CCMRAM
+
+        DATA
+__vector_table_CCMRAM
+        DCD     sfe(CSTACK)
+        DCD     Reset_Handler             ; Reset Handler
         DCD     NMI_Handler               ; NMI Handler
         DCD     HardFault_Handler         ; Hard Fault Handler
         DCD     MemManage_Handler         ; MPU Fault Handler

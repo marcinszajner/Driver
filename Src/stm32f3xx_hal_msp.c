@@ -74,6 +74,48 @@ void HAL_HRTIM_MspInit(HRTIM_HandleTypeDef * hhrtim)
 }
 
 /**
+  * @brief ADC MSP Initialization
+  *        This function configures the hardware resources used in this example:
+  *           - Peripheral's clock enable
+  *           - Peripheral's GPIO Configuration
+  * @param hadc: ADC handle pointer
+  * @retval None
+  */
+void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
+{
+  GPIO_InitTypeDef          GPIO_InitStruct;
+
+  /*##-1- Enable peripherals and GPIO Clocks #################################*/
+  /* Enable GPIO clock ****************************************/
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  __HAL_RCC_ADC12_CONFIG(RCC_ADC12PLLCLK_DIV1);
+  /* ADC2 Periph clock enable */
+  __HAL_RCC_ADC12_CLK_ENABLE();
+
+  /*##-2- Configure peripheral GPIO ##########################################*/
+  /* Configure PA1 and PA3 (ADC1 Channel2 and 4) as analog inputs */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin = GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*##-3- Configure the NVIC #################################################*/
+  /* NVIC configuration for DMA transfer complete interrupt (not used here) */
+//  HAL_NVIC_SetPriority(ADCx_IRQn, 0, 0);
+//  HAL_NVIC_EnableIRQ(ADCx_IRQn);
+  
+  /* Configure and enable HRTIM TIMERD interrupt channel in NVIC */
+  HAL_NVIC_SetPriority(HRTIM1_TIMD_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(HRTIM1_TIMD_IRQn);
+}
+
+/**
   * @brief  Initializes the Global MSP.
   * @param  None
   * @retval None

@@ -1164,6 +1164,33 @@
         </file>
     </group>
     <group>
+        <name>Driver</name>
+        <group>
+            <name>EWARM</name>
+            <file>
+                <name>$PROJ_DIR$\startup_stm32f334x8.s</name>
+            </file>
+        </group>
+        <group>
+            <name>User</name>
+            <file>
+                <name>$PROJ_DIR$\..\Inc\control_defines.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\Src\main.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\Src\stm32f3xx_hal_msp.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\Src\stm32f3xx_it.c</name>
+                <configuration>
+                    <name>STM32F3348-Discovery</name>
+                </configuration>
+            </file>
+        </group>
+    </group>
+    <group>
         <name>Drivers</name>
         <group>
             <name>BSP</name>
@@ -1230,27 +1257,6 @@
                     <name>$PROJ_DIR$\..\Drivers\STM32F3xx_HAL_Driver\Src\stm32f3xx_hal_spi.c</name>
                 </file>
             </group>
-        </group>
-    </group>
-    <group>
-        <name>Example</name>
-        <group>
-            <name>EWARM</name>
-            <file>
-                <name>$PROJ_DIR$\startup_stm32f334x8.s</name>
-            </file>
-        </group>
-        <group>
-            <name>User</name>
-            <file>
-                <name>$PROJ_DIR$\..\Src\main.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\Src\stm32f3xx_hal_msp.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\Src\stm32f3xx_it.c</name>
-            </file>
         </group>
     </group>
 </project>
