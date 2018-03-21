@@ -6,15 +6,30 @@
 #include "stm32f3xx_hal.h"
 #include "stm32f3348_discovery.h"
 #include "control_defines.h"
-//#include "arm_math.h"
+#include "arm_math.h"
+#include "arm_const_structs.h"
+#include "arm_math.h"
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions --------------------------------------------------------*/
 extern void Init_FIR(void);
+void Start_Driver(void);
+void Stop_Driver(void);
+void GPIO_HRTIM_outputs_Config(void);
+void ADC_Config(void);
 /* Exported variables --------------------------------------------------------*/
 extern HRTIM_HandleTypeDef hhrtim;
 extern ADC_HandleTypeDef AdcHandle;
+extern HRTIM_TimeBaseCfgTypeDef timebase_config;
+extern HRTIM_TimerCfgTypeDef timer_config;
+extern HRTIM_OutputCfgTypeDef output_config_TD1;
+extern HRTIM_BurstModeCfgTypeDef burst_mode_config;
+extern HRTIM_CompareCfgTypeDef compare_config;
+extern HRTIM_ADCTriggerCfgTypeDef adc_trigger_config;
+
+extern ADC_MultiModeTypeDef MultiModeConfig;
+extern ADC_InjectionConfTypeDef InjectionConfig;
 
 #endif /* __MAIN_H */

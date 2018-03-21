@@ -2,14 +2,15 @@
 #define __CONTROL_DEFINES
 
 #define STM32F334_EVAL_BOARD
-#define ARM_MATH_CM4
-#define PROFILLING
+//#define ARM_MATH_CM4
+//#define PROFILLING
 
 #define HRTIM_INPUT_CLOCK               ((uint64_t)144000000)   /* Value in Hz */
 /* Formula below works down to 70.3kHz (with presc ratio = 1) */ 
-#define MIN_FRQUENCY                    ((uint16_t)((HRTIM_INPUT_CLOCK * 32) / 110000))
+#define MIN_FRQUENCY                    ((uint16_t)((HRTIM_INPUT_CLOCK * 32) / 80000))
 #define MAX_FREQUENCY                   ((uint16_t)((HRTIM_INPUT_CLOCK * 32) / 180000))
-#define VIN(x)                          ((uint32_t) ((((REAL_3V3*x)/0x1000)*10000) / VIN_RESISTOR_RATIO))
+//#define VIN(x)                          ((uint32_t) ((((REAL_3V3*x)/0x1000)*10000) / VIN_RESISTOR_RATIO))
+#define VIN(x)                          ((uint32_t) ((REAL_3V3*x)/0x1000))
 #define VIN_RESISTOR_RATIO              ((uint16_t) 2012) /* theoretical bridge resistor Vin ratio (6.8K/(6.8K + 27K))*10000: can be adjusted if needed by measuring the real resistors ratio */
 #define REAL_3V3                        ((uint16_t) 3300) /* Measure 3V3 of application and enter it as reference in mV (default value is 3300) */
 #define SAMPLEFILTER_TAP_NUM            23

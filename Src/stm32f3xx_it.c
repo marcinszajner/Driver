@@ -249,8 +249,28 @@ void ADC1_2_IRQHandler(void)
 #ifdef PROFILLING
     GPIOB->ODR ^= GPIO_PIN_7; //toggle LED6
 #endif
-  /* Clear ADC interrupt flag */
+    /* Clear ADC interrupt flag */
   __HAL_ADC_CLEAR_FLAG(&AdcHandle, ADC_FLAG_JEOS);
+  if(Detection_in_progress)
+  {
+    if(measurement_done == 1)
+    {
+      adc_sample[63] = VIN(AdcHandle.Instance->JDR1);
+    }
+    else
+    {
+      adc_sample[counter] = VIN(AdcHandle.Instance->JDR1);
+    }
+    //}
+    counter++;
+    if(counter >= 63 &&  measurement_done == 0)
+    {
+      Stop_Detector();
+      counter = 0;
+      measurement_done = 1;
+      __HAL_ADC_CLEAR_FLAG(&AdcHandle, ADC_FLAG_JEOS);
+    }
+  }
 #ifdef PROFILLING
   GPIOB->ODR ^= GPIO_PIN_7;  //toggle LED6
 #endif
@@ -258,13 +278,16 @@ void ADC1_2_IRQHandler(void)
 
 void HRTIM1_TIMD_IRQHandler(void)
 {
+  
+  __HAL_HRTIM_TIMER_CLEAR_IT(&hhrtim, HRTIM_TIMERINDEX_TIMER_D, HRTIM_TIM_IT_REP);
+   if(0)
+  { 
+
 #ifdef PROFILLING
   GPIOB->ODR ^= GPIO_PIN_7;  //toggle LED6
 #endif
   static uint32_t CurrentPeriod;
   int32_t acc = 0;
-
-  __HAL_HRTIM_TIMER_CLEAR_IT(&hhrtim, HRTIM_TIMERINDEX_TIMER_D, HRTIM_TIM_IT_REP);
   
   //read adc value
   VoutConversion = AdcHandle.Instance->JDR1;  
@@ -357,6 +380,7 @@ void HRTIM1_TIMD_IRQHandler(void)
 #ifdef PROFILLING
   GPIOB->ODR ^= GPIO_PIN_7;  //toggle LED6
 #endif
+  }
 }
 
 void Init_FIR(void)

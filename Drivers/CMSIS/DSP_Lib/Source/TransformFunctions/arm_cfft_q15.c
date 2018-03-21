@@ -37,7 +37,7 @@
 * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 * POSSIBILITY OF SUCH DAMAGE.   
 * -------------------------------------------------------------------- */
-
+#include "main.h"
 #include "arm_math.h"
 
 extern void arm_radix4_butterfly_q15(

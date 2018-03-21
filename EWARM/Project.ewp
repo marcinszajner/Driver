@@ -11,7 +11,7 @@
             <name>General</name>
             <archiveVersion>3</archiveVersion>
             <data>
-                <version>29</version>
+                <version>30</version>
                 <wantNonLocal>1</wantNonLocal>
                 <debug>1</debug>
                 <option>
@@ -66,7 +66,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>8.11.3.13977</state>
+                    <state>8.20.2.14834</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -116,7 +116,7 @@
                 </option>
                 <option>
                     <name>GBECoreSlave</name>
-                    <version>25</version>
+                    <version>26</version>
                     <state>39</state>
                 </option>
                 <option>
@@ -125,7 +125,7 @@
                 </option>
                 <option>
                     <name>OGUseCmsisDspLib</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>GRuntimeLibThreads</name>
@@ -133,7 +133,7 @@
                 </option>
                 <option>
                     <name>CoreVariant</name>
-                    <version>25</version>
+                    <version>26</version>
                     <state>39</state>
                 </option>
                 <option>
@@ -156,7 +156,7 @@
                 </option>
                 <option>
                     <name>GFPUCoreSlave2</name>
-                    <version>25</version>
+                    <version>26</version>
                     <state>39</state>
                 </option>
                 <option>
@@ -200,6 +200,10 @@
                     <name>DSPExtension</name>
                     <state>1</state>
                 </option>
+                <option>
+                    <name>TrustZone</name>
+                    <state>0</state>
+                </option>
             </data>
         </settings>
         <settings>
@@ -211,7 +215,7 @@
                 <debug>1</debug>
                 <option>
                     <name>CCOptimizationNoSizeConstraints</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>CCDefines</name>
@@ -812,8 +816,7 @@
                 </option>
                 <option>
                     <name>IlinkAdditionalLibs</name>
-                    <state>C:\Projekty_soft\Sterownik\Drivers\CMSIS\Lib\ARM\arm_cortexM4l_math.lib</state>
-                    <state>C:\Projekty_soft\Sterownik\Drivers\CMSIS\Lib\ARM\arm_cortexM4lf_math.lib</state>
+                    <state></state>
                 </option>
                 <option>
                     <name>IlinkOverrideProgramEntryLabel</name>
@@ -1041,11 +1044,20 @@
         </group>
         <group>
             <name>User</name>
+            <group>
+                <name>DSP</name>
+                <file>
+                    <name>$PROJ_DIR$\..\Src\fxpt_atan2.c</name>
+                </file>
+            </group>
             <file>
                 <name>$PROJ_DIR$\..\Inc\control_defines.h</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\Src\main.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\Src\rezonans_detector.c</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\Src\stm32f3xx_hal_msp.c</name>

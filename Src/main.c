@@ -1,17 +1,33 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
+#include "rezonans_detector.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/ 
+HRTIM_TimeBaseCfgTypeDef timebase_config;
+HRTIM_TimerCfgTypeDef timer_config;
+HRTIM_OutputCfgTypeDef output_config_TD1;
+HRTIM_BurstModeCfgTypeDef burst_mode_config;
+HRTIM_CompareCfgTypeDef compare_config;
+HRTIM_ADCTriggerCfgTypeDef adc_trigger_config;
+
+ADC_MultiModeTypeDef MultiModeConfig;
+ADC_InjectionConfTypeDef InjectionConfig;
+
+uint32_t min_frequency =                  MIN_FRQUENCY;
+uint32_t max_frequency =                  MAX_FREQUENCY;
+uint32_t difference_frequency_reg_value = (MIN_FRQUENCY - MAX_FREQUENCY);
+uint32_t max_burst_control_value =        (((DIFERENCE_FREQUENCY_REG_VALUE)*(PERCENT_OF_BURST_MODE_CONTROL))/1000);
+uint32_t max_value_of_feedback_loop =     ((DIFERENCE_FREQUENCY_REG_VALUE) + (MAX_BURST_CONTROL_VALUE));
+uint32_t link_adc_tofeedback =            (((MAX_VALUE_OF_FEEDBACK_LOOP)*(1000))/(ADC_12_BIT_RESULUTION));
+uint32_t link_to_burst_mode =             ((MAX_BURST_CONTROL_VALUE) / (BURST_MODE_PERIOD));
+
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
 static void Error_Handler(void);
-static void GPIO_HRTIM_outputs_Config(void);
-static void HRTIM_Config_HalfMode(void);
-static void ADC_Config(void);
-static void Start_Driver(void);
+static void HRTIM_Config_HalfMode(uint32_t frequency);
+void ADC_Config(void);
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -23,6 +39,7 @@ static void Start_Driver(void);
 int main(void)
 {
   uint32_t active_led = 0;
+  uint32_t resonant_frequency = 0;
 
   //Hardware abstraction layer initialization
   HAL_Init();
@@ -40,14 +57,18 @@ int main(void)
   BSP_PB_Init(BUTTON_USER, BUTTON_MODE_GPIO); 
 #endif
 
+  
+  resonant_frequency = rezonans_detector();
+  
+  
   //Initialize HRTIM and related inputs
-  HRTIM_Config_HalfMode();
+  HRTIM_Config_HalfMode(resonant_frequency);
   
   //Initialize GPIO's HRTIM outputs
-  GPIO_HRTIM_outputs_Config();
+  //GPIO_HRTIM_outputs_Config();
   
   /* Initialize ADC to be triggered by the HRTIMER */
-  ADC_Config();
+  //ADC_Config();
   
   //Init FIR array with max value for soft start
   Init_FIR();
@@ -155,7 +176,7 @@ static void SystemClock_Config(void)
 * @param  None
 * @retval None
 */
-static void GPIO_HRTIM_outputs_Config(void)
+void GPIO_HRTIM_outputs_Config(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct;
 
@@ -189,33 +210,27 @@ static void GPIO_HRTIM_outputs_Config(void)
 * @param  None
 * @retval None
 */
-static void HRTIM_Config_HalfMode(void)
+static void HRTIM_Config_HalfMode(uint32_t frequency)
 {
-  HRTIM_TimeBaseCfgTypeDef timebase_config;
-  HRTIM_TimerCfgTypeDef timer_config;
-  HRTIM_OutputCfgTypeDef output_config_TD1;
-  HRTIM_BurstModeCfgTypeDef burst_mode_config;
-  HRTIM_CompareCfgTypeDef compare_config;
-  HRTIM_ADCTriggerCfgTypeDef adc_trigger_config;
 
   /* ----------------------------------------------- */
   /* HRTIM Global initialization: Clock and DLL init */
   /* ----------------------------------------------- */
   /* Initialize the HRTIM structure (minimal configuration) */
-  hhrtim.Instance = HRTIM1;
-  hhrtim.Init.HRTIMInterruptResquests = HRTIM_IER_BMPER; /*!<  Burst mode period interrupt enable */
-  hhrtim.Init.SyncOptions = HRTIM_SYNCOPTION_NONE;
+  //hhrtim.Instance = HRTIM1;
+  //hhrtim.Init.HRTIMInterruptResquests = HRTIM_IER_BMPER; /*!<  Burst mode period interrupt enable */
+  //hhrtim.Init.SyncOptions = HRTIM_SYNCOPTION_NONE;
 
   /* Initialize HRTIM */
-  HAL_HRTIM_Init(&hhrtim);
+  //HAL_HRTIM_Init(&hhrtim);
 
   /* HRTIM DLL calibration: periodic calibration, set period to 14µs */
-  HAL_HRTIM_DLLCalibrationStart(&hhrtim, HRTIM_CALIBRATIONRATE_14);
+  //HAL_HRTIM_DLLCalibrationStart(&hhrtim, HRTIM_CALIBRATIONRATE_14);
   /* Wait calibration completion*/
-  if (HAL_HRTIM_PollForDLLCalibration(&hhrtim, 100) != HAL_OK)
-  {
-    Error_Handler(); /* if DLL or clock is not correctly set */
-  }
+  //if (HAL_HRTIM_PollForDLLCalibration(&hhrtim, 100) != HAL_OK)
+  //{
+  //  Error_Handler(); /* if DLL or clock is not correctly set */
+  //}
   
   burst_mode_config.ClockSource = HRTIM_BURSTMODECLOCKSOURCE_TIMER_D;
   burst_mode_config.IdleDuration = 0;                                   //start value of idle durration.
@@ -229,16 +244,19 @@ static void HRTIM_Config_HalfMode(void)
   /* ------------------------------------------------------------ */
   /* TIMERD initialization: set Hal Mode frequency and continuous mode */
   /* ------------------------------------------------------------ */
-  timebase_config.Period = MAX_FREQUENCY;                              //start frequency value
-  timebase_config.RepetitionCounter = 0;                                //Event rate divider
+  timebase_config.Period = frequency;                                           //start frequency value
+  timebase_config.RepetitionCounter = 0;                                        //Event rate divider
   timebase_config.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
   timebase_config.Mode = HRTIM_MODE_CONTINUOUS;
-  HAL_HRTIM_TimeBaseConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_D, &timebase_config);
+  HAL_HRTIM_TimeBaseConfig(&hhrtim, HRTIM_TIMERINDEX_MASTER, &timebase_config);
+  HAL_HRTIM_TimeBaseConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_D, &timebase_config);// half bridge control
 
   
-  /* --------------------------------------------------------------------- */
-  /* TIMERD global configuration: all values to default                    */
-  /* --------------------------------------------------------------------- */
+  /* ---------------------------------------------------------- */
+  /* Master timer initialization                                */
+  /* Update on repetition, interrupt issued on repetition event */
+  /* Master timer is used for primary side switches             */
+  /* ---------------------------------------------------------- */
   timer_config.DMARequests = HRTIM_TIM_DMA_NONE;
   timer_config.DMASrcAddress = 0x0;
   timer_config.DMADstAddress = 0x0;
@@ -251,6 +269,21 @@ static void HRTIM_Config_HalfMode(void)
   timer_config.UpdateGating = HRTIM_UPDATEGATING_INDEPENDENT;
   timer_config.BurstMode = HRTIM_TIMERBURSTMODE_MAINTAINCLOCK;
   timer_config.RepetitionUpdate = HRTIM_UPDATEONREPETITION_ENABLED;
+  timer_config.InterruptRequests = HRTIM_MASTER_IT_NONE;
+  HAL_HRTIM_WaveformTimerConfig(&hhrtim, HRTIM_TIMERINDEX_MASTER, &timer_config);
+  
+  /* --------------------------------------------------------------------- */
+  /* TIMERD global configuration: all values to default                    */
+  /* --------------------------------------------------------------------- */
+  
+  timer_config.HalfModeEnable = HRTIM_HALFMODE_DISABLED;
+  timer_config.StartOnSync = HRTIM_SYNCSTART_DISABLED;
+  timer_config.ResetOnSync = HRTIM_SYNCRESET_DISABLED;
+  timer_config.DACSynchro = HRTIM_DACSYNC_NONE;
+  timer_config.PreloadEnable = HRTIM_PRELOAD_ENABLED;
+  timer_config.UpdateGating = HRTIM_UPDATEGATING_INDEPENDENT;
+  timer_config.BurstMode = HRTIM_TIMERBURSTMODE_MAINTAINCLOCK;
+  timer_config.RepetitionUpdate = HRTIM_UPDATEONREPETITION_DISABLED;
   timer_config.ResetUpdate = HRTIM_TIMUPDATEONRESET_DISABLED;
   timer_config.InterruptRequests = HRTIM_TIM_IT_REP;
   timer_config.PushPull = HRTIM_TIMPUSHPULLMODE_DISABLED;
@@ -258,18 +291,18 @@ static void HRTIM_Config_HalfMode(void)
   timer_config.FaultLock = HRTIM_TIMFAULTLOCK_READWRITE;
   timer_config.DeadTimeInsertion = HRTIM_TIMDEADTIMEINSERTION_DISABLED;
   timer_config.DelayedProtectionMode = HRTIM_TIMER_A_B_C_DELAYEDPROTECTION_DISABLED;
-  timer_config.UpdateTrigger= HRTIM_TIMUPDATETRIGGER_TIMER_D;
-  timer_config.ResetTrigger = HRTIM_TIMRESETTRIGGER_NONE;
-  timer_config.ResetUpdate = HRTIM_TIMUPDATEONRESET_DISABLED;
+  timer_config.UpdateTrigger= HRTIM_TIMUPDATETRIGGER_MASTER;
+  timer_config.ResetTrigger = HRTIM_TIMRESETTRIGGER_MASTER_PER + HRTIM_TIMRESETTRIGGER_MASTER_CMP1;
   HAL_HRTIM_WaveformTimerConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_D,&timer_config);
+  
   
   /* --------------------------------------------------------- */
   /* TD1 waveform description TD1 set on period, reset on CMP1 */
   /* Compare 1 is automatically computed (Half mode)           */
   /* --------------------------------------------------------- */
   output_config_TD1.Polarity = HRTIM_OUTPUTPOLARITY_HIGH;
-  output_config_TD1.SetSource = HRTIM_OUTPUTSET_TIMPER;
-  output_config_TD1.ResetSource  = HRTIM_OUTPUTRESET_TIMCMP1;
+  output_config_TD1.SetSource = HRTIM_OUTPUTSET_MASTERCMP1;
+  output_config_TD1.ResetSource  = HRTIM_OUTPUTSET_MASTERPER;
   output_config_TD1.IdleMode = HRTIM_OUTPUTIDLEMODE_IDLE;
   output_config_TD1.IdleLevel = HRTIM_OUTPUTIDLELEVEL_INACTIVE;
   output_config_TD1.FaultLevel = HRTIM_OUTPUTFAULTLEVEL_NONE;
@@ -283,7 +316,7 @@ static void HRTIM_Config_HalfMode(void)
   /* Set compare registers for duty cycle on TD1 */
   compare_config.AutoDelayedMode = HRTIM_AUTODELAYEDMODE_REGULAR;
   compare_config.AutoDelayedTimeout = 0;
-  compare_config.CompareValue = (85*MIN_FRQUENCY)/100;     // 85% duty cycle
+  compare_config.CompareValue = (85*frequency)/100;     // 85% duty cycle
   HAL_HRTIM_WaveformCompareConfig(&hhrtim,
                                   HRTIM_TIMERINDEX_TIMER_D,
                                   HRTIM_COMPAREUNIT_2,
@@ -322,11 +355,8 @@ static void HRTIM_Config_HalfMode(void)
   * @param  None
   * @retval None
   */
-static void ADC_Config(void)
+void ADC_Config(void)
 {
-  ADC_MultiModeTypeDef MultiModeConfig;
-  ADC_InjectionConfTypeDef InjectionConfig;
-
   AdcHandle.Instance = ADC2;
 
   /* ADC2 is working independently */
@@ -341,7 +371,7 @@ static void ADC_Config(void)
   AdcHandle.Init.Resolution = ADC_RESOLUTION_12B;
   AdcHandle.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   AdcHandle.Init.ScanConvMode = ENABLE;
-  AdcHandle.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+  AdcHandle.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   AdcHandle.Init.LowPowerAutoWait = DISABLE;
   AdcHandle.Init.ContinuousConvMode = DISABLE;
   AdcHandle.Init.NbrOfConversion = 1;                           // set number of conversation if number of active RANK's are changed
@@ -369,23 +399,23 @@ static void ADC_Config(void)
   HAL_ADCEx_InjectedConfigChannel(&AdcHandle, &InjectionConfig);
   
 /*              NOT USED                */
-//  /* Configure the 2nd injected conversion on Ch2 */
-//  InjectionConfig.InjectedChannel = ADC_CHANNEL_2;
-//  InjectionConfig.InjectedRank = ADC_INJECTED_RANK_2;
-//  InjectionConfig.InjectedSamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-//  HAL_ADCEx_InjectedConfigChannel(&AdcHandle, &InjectionConfig);
-//  
-//  /* Configure the 3rd injected conversion on Ch2 */
-//  InjectionConfig.InjectedChannel = ADC_CHANNEL_2;
-//  InjectionConfig.InjectedRank = ADC_INJECTED_RANK_3;
-//  InjectionConfig.InjectedSamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-//  HAL_ADCEx_InjectedConfigChannel(&AdcHandle, &InjectionConfig);
-//
-//  /* Configure the 4th injected conversion on Ch2 */
-//  InjectionConfig.InjectedChannel = ADC_CHANNEL_2;
-//  InjectionConfig.InjectedRank = ADC_INJECTED_RANK_4;
-//  InjectionConfig.InjectedSamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-//  HAL_ADCEx_InjectedConfigChannel(&AdcHandle, &InjectionConfig);
+  /* Configure the 2nd injected conversion on Ch2 */
+  InjectionConfig.InjectedChannel = ADC_CHANNEL_2;
+  InjectionConfig.InjectedRank = ADC_INJECTED_RANK_2;
+  InjectionConfig.InjectedSamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  HAL_ADCEx_InjectedConfigChannel(&AdcHandle, &InjectionConfig);
+  
+  /* Configure the 3rd injected conversion on Ch2 */
+  InjectionConfig.InjectedChannel = ADC_CHANNEL_2;
+  InjectionConfig.InjectedRank = ADC_INJECTED_RANK_3;
+  InjectionConfig.InjectedSamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  HAL_ADCEx_InjectedConfigChannel(&AdcHandle, &InjectionConfig);
+
+  /* Configure the 4th injected conversion on Ch2 */
+  InjectionConfig.InjectedChannel = ADC_CHANNEL_2;
+  InjectionConfig.InjectedRank = ADC_INJECTED_RANK_4;
+  InjectionConfig.InjectedSamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  HAL_ADCEx_InjectedConfigChannel(&AdcHandle, &InjectionConfig);
 
   /* Configure and enable ADC1_2_IRQHandler interrupt channel in NVIC */
   HAL_NVIC_SetPriority(ADC1_2_IRQn, 1, 1);
@@ -393,6 +423,9 @@ static void ADC_Config(void)
 
   /* Run the ADC calibration in single-ended mode */
   HAL_ADCEx_Calibration_Start(&AdcHandle, ADC_SINGLE_ENDED);
+  
+  /* Start ADC1 Injected Conversions */
+  HAL_ADCEx_InjectedStart_IT(&AdcHandle);
 }
 
 /**
@@ -400,14 +433,12 @@ static void ADC_Config(void)
   * @param  None
   * @retval None
   */
-static void Start_Driver(void)
+void Start_Driver(void)
 {  
   
-  /* Start HRTIM's TIMER D*/
-  HAL_HRTIM_WaveformCounterStart_IT(&hhrtim, HRTIM_TIMERID_TIMER_D);
-  //HAL_HRTIM_BurstModeCtl(&hhrtim, HRTIM_BURSTMODECTL_ENABLED);
-  /* Start ADC1 Injected Conversions */
-  HAL_ADCEx_InjectedStart_IT(&AdcHandle);
+  hhrtim.Instance->sMasterRegs.MCNTR = 0x0000;
+  hhrtim.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_C].CNTxR = 0x0000;
+  hhrtim.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_D].CNTxR = 0x0000;
   
   /* ---------------*/
   /* HRTIM start-up */
@@ -415,13 +446,48 @@ static void Start_Driver(void)
   /* Enable HRTIM's outputs TD1 */
   /* Note: it is necessary to enable also GPIOs to have outputs functional */
   /* This must be done after HRTIM initialization */
-  HAL_HRTIM_WaveformOutputStart(&hhrtim, HRTIM_OUTPUT_TD1);
+  //HAL_HRTIM_WaveformOutputStart(&hhrtim, HRTIM_OUTPUT_TD1);
+  
+    //HAL_HRTIM_BurstModeCtl(&hhrtim, HRTIM_BURSTMODECTL_ENABLED);
+  /* Start HRTIM's TIMER D*/
+  //HAL_HRTIM_WaveformCounterStart_IT(&hhrtim, HRTIM_TIMERID_TIMER_D);
+  /* Start HRTIM's Master timer, TIMER A and B */
+  hhrtim.Instance->sCommonRegs.CR2 = (HRTIM_TIMERRESET_MASTER|HRTIM_TIMERRESET_TIMER_D | HRTIM_TIMERUPDATE_MASTER|HRTIM_TIMERUPDATE_D);
+  //HAL_HRTIM_WaveformCounterStart_IT(&hhrtim, HRTIM_TIMERID_MASTER | HRTIM_TIMERID_TIMER_C | HRTIM_TIMERID_TIMER_D);
+  hhrtim.Instance->sMasterRegs.MCR |= (HRTIM_TIMERID_MASTER | HRTIM_TIMERID_TIMER_D);
+  
+  //hhrtim.Instance->sMasterRegs.MDIER |= HRTIM_TIMERID_TIMER_D;
   
   //This delay is nedded! It is aganist transient state on HRTIM driver
-  HAL_Delay(1);
+  //HAL_Delay(1);
+  //HAL_HRTIM_WaveformCounterStart_IT(&hhrtim, HRTIM_TIMERID_TIMER_A);
   //Active output
   GPIOB->AFR[1] |= 0xDD000000;  //Set GPIOB alternative function PIN 14 and 15
   GPIOB->MODER  |= 0xA0000000;  //SET GPIOB port mode PIN 14 and 15 to Alternative function mode
+}
+
+void Stop_Driver(void)
+{
+  //HAL_HRTIM_WaveformOutputStop(&hhrtim, HRTIM_OUTPUT_TD1);
+  //HAL_ADCEx_InjectedStop_IT(&AdcHandle);
+  //HAL_HRTIM_BurstModeCtl(&hhrtim, HRTIM_BURSTMODECTL_DISABLED);
+  
+  //HAL_HRTIM_WaveformCounterStop_IT(&hhrtim, HRTIM_TIMERID_MASTER | HRTIM_TIMERID_TIMER_C | HRTIM_TIMERID_TIMER_D);
+  hhrtim.Instance->sMasterRegs.MCR &= ~(HRTIM_TIMERID_MASTER | HRTIM_TIMERID_TIMER_C | HRTIM_TIMERID_TIMER_D);
+  
+  //HAL_HRTIM_SoftwareReset(&hhrtim, HRTIM_TIMERRESET_TIMER_C);
+  //HAL_HRTIM_SoftwareReset(&hhrtim, HRTIM_TIMERRESET_MASTER);
+  //HAL_HRTIM_SoftwareReset(&hhrtim, HRTIM_TIMERRESET_TIMER_D);
+  
+  hhrtim.Instance->sCommonRegs.CR2 = (HRTIM_TIMERRESET_MASTER|HRTIM_TIMERRESET_TIMER_C|HRTIM_TIMERRESET_TIMER_D | HRTIM_TIMERUPDATE_MASTER|HRTIM_TIMERUPDATE_C|HRTIM_TIMERUPDATE_D);
+  
+  HAL_HRTIM_WaveformSetOutputLevel(&hhrtim, HRTIM_TIMERINDEX_TIMER_D, HRTIM_OUTPUT_TD1, HRTIM_OUTPUTLEVEL_INACTIVE);
+  
+  hhrtim.Instance->sMasterRegs.MCNTR = 0x0000;
+  hhrtim.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_C].CNTxR = 0x0000;
+  hhrtim.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_D].CNTxR = 0x0000;
+  //GPIOB->AFR[1] |= 0x00000000;  //Set GPIOB alternative function PIN 14 and 15
+  //GPIOB->MODER  |= 0x00000000;  //SET GPIOB port mode PIN 14 and 15 to Alternative function mode
 }
 
 /**

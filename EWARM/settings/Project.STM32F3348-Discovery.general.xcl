@@ -2,7 +2,7 @@
 
 "C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\bin\armstlink2.dll" 
 
-"C:\Projekty_soft\Sterownik\EWARM\STM32F3348-Discovery\Exe\Project.out" 
+"C:\Driver\EWARM\STM32F3348-Discovery\Exe\Project.out" 
 
 --plugin "C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\bin\armbat.dll" 
 
