@@ -244,6 +244,7 @@ void SysTick_Handler(void)
 * @param  None
 * @retval None
 */
+//TODO w wolnej chwile troche to poprawic
 void ADC1_2_IRQHandler(void)
 {
 #ifdef PROFILLING
@@ -253,6 +254,9 @@ void ADC1_2_IRQHandler(void)
   __HAL_ADC_CLEAR_FLAG(&AdcHandle, ADC_FLAG_JEOS);
   if(Detection_in_progress)
   {
+    // detector work with 64 sample for fft for better accuracy
+    
+    // last sample come after stop detector
     if(measurement_done == 1)
     {
       adc_sample[63] = VIN(AdcHandle.Instance->JDR1);
@@ -271,11 +275,37 @@ void ADC1_2_IRQHandler(void)
       __HAL_ADC_CLEAR_FLAG(&AdcHandle, ADC_FLAG_JEOS);
     }
   }
+  else
+  {
+    // normal work is fft from 32 sample
+    if(measurement_done == 1)
+    {
+      adc_sample[31] = VIN(AdcHandle.Instance->JDR1); // usunac kopiowania adc_sample do innego array
+      //HAL_NVIC_DisableIRQ(ADC1_2_IRQn);
+      hhrtim.Instance->sMasterRegs.MCR &= ~(HRTIM_TIMERID_TIMER_C); 
+      hhrtim.Instance->sCommonRegs.CR2 = (HRTIM_TIMERRESET_TIMER_C | HRTIM_TIMERUPDATE_C);
+      return;
+    }
+    else
+    {
+      adc_sample[counter] = VIN(AdcHandle.Instance->JDR1);
+    }
+    //}
+    counter++;
+    if(counter >= 31 &&  measurement_done == 0)
+    {
+      //Stop_Detector(); // zmienic na stop ADC
+      counter = 0;
+      measurement_done = 1;
+      __HAL_ADC_CLEAR_FLAG(&AdcHandle, ADC_FLAG_JEOS);
+    }
+  }
 #ifdef PROFILLING
   GPIOB->ODR ^= GPIO_PIN_7;  //toggle LED6
 #endif
 }
 
+// Przerwanie liczace PI, aktualnie nieaktywne z przyczyn braku sygnalu sprzezenia zwrotnego
 void HRTIM1_TIMD_IRQHandler(void)
 {
   

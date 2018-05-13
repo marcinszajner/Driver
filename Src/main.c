@@ -23,6 +23,21 @@ uint32_t max_value_of_feedback_loop =     ((DIFERENCE_FREQUENCY_REG_VALUE) + (MA
 uint32_t link_adc_tofeedback =            (((MAX_VALUE_OF_FEEDBACK_LOOP)*(1000))/(ADC_12_BIT_RESULUTION));
 uint32_t link_to_burst_mode =             ((MAX_BURST_CONTROL_VALUE) / (BURST_MODE_PERIOD));
 
+float phase_offset_resonant;
+uint32_t phase_shift_resonant;
+
+
+float Period = 0;
+float Period2 = 0;
+float anglefloat = 0;
+uint32_t resonant_frequency = 0;
+int32_t P16;
+uint32_t ifftFlag = 0;
+uint32_t doBitReverse = 1;  
+
+static int16_t complex[32][2];
+static volatile uint16_t angle; 
+
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
 static void Error_Handler(void);
@@ -38,8 +53,7 @@ void ADC_Config(void);
   */
 int main(void)
 {
-  uint32_t active_led = 0;
-  uint32_t resonant_frequency = 0;
+  //uint32_t active_led = 0;
 
   //Hardware abstraction layer initialization
   HAL_Init();
@@ -63,7 +77,7 @@ int main(void)
   
   //Initialize HRTIM and related inputs
   HRTIM_Config_HalfMode(resonant_frequency);
-  
+  resonant_frequency = HRTIM_OUPUT_CLOCK_KHZ/resonant_frequency;
   //Initialize GPIO's HRTIM outputs
   //GPIO_HRTIM_outputs_Config();
   
@@ -79,49 +93,117 @@ int main(void)
   /* Infinite loop */
   while (1)
   {
-#ifdef STM32F334_EVAL_BOARD
-    if((BSP_PB_GetState(BUTTON_USER) == SET))
+    if(measurement_done)
     {
-      active_led++;
-      if(active_led >= 4)
+      
+      //start_timer();          // start the timer.
+      //it1 = get_timer();      // store current cycle-count in a local
+      
+      for(int32_t i = 0; i < 32; i++)
       {
-        active_led = 0;
+        complex[i][0] = adc_sample[i];
+        complex[i][1] = 0;
       }
+
+      arm_cfft_q15(&arm_cfft_sR_q15_len32, (q15_t*)complex, ifftFlag, doBitReverse);
+      
+      angle = fxpt_atan2(complex[8][0], complex[8][1]);     
+       
+      complex[8][0] = complex[8][0] < 0 ? -complex[8][0] : complex[8][0];
+      complex[8][1] = complex[8][1] < 0 ? -complex[8][1] : complex[8][1];
+      P16 = complex[8][0]*complex[8][0] + complex[8][1]*complex[8][1];
+
+      //Babylonian method
+      uint32_t j = 1;
+      uint32_t temp = P16;
+      while(P16 > j)
+      {
+        P16 = (P16 + j)/2;
+        j = temp/P16;
+      }      
+      
+      phase_offset_resonant = 2*M_PI*resonant_frequency*100*0.0000019f;
+      phase_shift_resonant = (uint32_t)((phase_offset_resonant*0xFFFF)/(2*M_PI));   
+      
+      //PI + offset (deat time + delay on transoptor, driver etc.)
+      if(angle > 0x8000+phase_shift_resonant)
+      {
+        resonant_frequency=resonant_frequency-2;
+      }
+      else if (angle < 0x8000-0x0300+phase_shift_resonant)
+      {
+        resonant_frequency=resonant_frequency+2;
+      }      
+
+      //Set new ADC triger
+      __HAL_HRTIM_SETCOMPARE(&hhrtim, HRTIM_TIMERINDEX_TIMER_C, HRTIM_COMPAREUNIT_2, (25 * (HRTIM_OUPUT_CLOCK_KHZ/resonant_frequency))/200);
+      __HAL_HRTIM_SETCOMPARE(&hhrtim, HRTIM_TIMERINDEX_TIMER_C, HRTIM_COMPAREUNIT_3, (50 * (HRTIM_OUPUT_CLOCK_KHZ/resonant_frequency))/200);
+      __HAL_HRTIM_SETCOMPARE(&hhrtim, HRTIM_TIMERINDEX_TIMER_C, HRTIM_COMPAREUNIT_4, (75 * (HRTIM_OUPUT_CLOCK_KHZ/resonant_frequency))/200);
+      
+      __HAL_HRTIM_SETCOMPARE(&hhrtim, HRTIM_TIMERINDEX_MASTER, HRTIM_COMPAREUNIT_2, (0 * (HRTIM_OUPUT_CLOCK_KHZ/resonant_frequency))/100);
+      __HAL_HRTIM_SETCOMPARE(&hhrtim, HRTIM_TIMERINDEX_MASTER, HRTIM_COMPAREUNIT_3, (50 * (HRTIM_OUPUT_CLOCK_KHZ/resonant_frequency))/100);
+      
+      //Set new period value for timers
+      __HAL_HRTIM_SETPERIOD(&hhrtim, HRTIM_TIMERINDEX_MASTER, (HRTIM_OUPUT_CLOCK_KHZ/resonant_frequency));
+      __HAL_HRTIM_SETPERIOD(&hhrtim, HRTIM_TIMERINDEX_TIMER_D, (HRTIM_OUPUT_CLOCK_KHZ/resonant_frequency));
+      __HAL_HRTIM_SETPERIOD(&hhrtim, HRTIM_TIMERINDEX_TIMER_C, (HRTIM_OUPUT_CLOCK_KHZ/resonant_frequency)/2);      
+
+      //it2 = get_timer() - it1;    // Derive the cycle-count difference
+      //stop_timer();               // If timer is not needed any more, stop  
+      
+      HAL_Delay(1);
+      
+      measurement_done = 0;
+      //HAL_NVIC_EnableIRQ(ADC1_2_IRQn);
+      hhrtim.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_C].CNTxR = 0x0000;
+      hhrtim.Instance->sCommonRegs.CR2 = (HRTIM_TIMERRESET_TIMER_C | HRTIM_TIMERUPDATE_C);
+      hhrtim.Instance->sMasterRegs.MCR |= (HRTIM_TIMERID_TIMER_C);
     }
-    switch(active_led)
-    {
-      case 0:
-        BSP_LED_Off(LED4);
-        BSP_LED_Off(LED5);
-        BSP_LED_Off(LED6);
-        BSP_LED_Toggle(LED3);
-        break;
-      case 1:
-        BSP_LED_Off(LED3);
-        BSP_LED_Off(LED5);
-        BSP_LED_Off(LED6);
-        BSP_LED_Toggle(LED4);
-        break;
-      case 2:
-        BSP_LED_Off(LED3);
-        BSP_LED_Off(LED4);
-        BSP_LED_Off(LED5);
-        BSP_LED_Toggle(LED6);
-        break;
-      case 3:
-        BSP_LED_Off(LED3);
-        BSP_LED_Off(LED4);
-        BSP_LED_Off(LED6);
-        BSP_LED_Toggle(LED5);
-        break;
-      default:
-        BSP_LED_Toggle(LED3);
-        BSP_LED_Toggle(LED4);
-        BSP_LED_Toggle(LED5);
-        BSP_LED_Toggle(LED6);
-    }
+    
+    
+#ifdef STM32F334_EVAL_BOARD
+//    if((BSP_PB_GetState(BUTTON_USER) == SET))
+//    {
+//      active_led++;
+//      if(active_led >= 4)
+//      {
+//        active_led = 0;
+//      }
+//    }
+//    switch(active_led)
+//    {
+//      case 0:
+//        BSP_LED_Off(LED4);
+//        BSP_LED_Off(LED5);
+//        BSP_LED_Off(LED6);
+//        BSP_LED_Toggle(LED3);
+//        break;
+//      case 1:
+//        BSP_LED_Off(LED3);
+//        BSP_LED_Off(LED5);
+//        BSP_LED_Off(LED6);
+//        BSP_LED_Toggle(LED4);
+//        break;
+//      case 2:
+//        BSP_LED_Off(LED3);
+//        BSP_LED_Off(LED4);
+//        BSP_LED_Off(LED5);
+//        BSP_LED_Toggle(LED6);
+//        break;
+//      case 3:
+//        BSP_LED_Off(LED3);
+//        BSP_LED_Off(LED4);
+//        BSP_LED_Off(LED6);
+//        BSP_LED_Toggle(LED5);
+//        break;
+//      default:
+//        BSP_LED_Toggle(LED3);
+//        BSP_LED_Toggle(LED4);
+//        BSP_LED_Toggle(LED5);
+//        BSP_LED_Toggle(LED6);
+//    }
 #endif
-    HAL_Delay(400);
+    //HAL_Delay(400);
   }
 }
 
@@ -246,11 +328,27 @@ static void HRTIM_Config_HalfMode(uint32_t frequency)
   /* ------------------------------------------------------------ */
   timebase_config.Period = frequency;                                           //start frequency value
   timebase_config.RepetitionCounter = 0;                                        //Event rate divider
-  timebase_config.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
+  switch(MULTIPLER)
+  {
+    case 32:
+      timebase_config.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
+      break;
+      
+    case 16:
+    timebase_config.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL16;
+     break;
+     
+    default:
+      while(1){};
+  }
   timebase_config.Mode = HRTIM_MODE_CONTINUOUS;
   HAL_HRTIM_TimeBaseConfig(&hhrtim, HRTIM_TIMERINDEX_MASTER, &timebase_config);
   HAL_HRTIM_TimeBaseConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_D, &timebase_config);// half bridge control
 
+  timebase_config.Period = frequency/2;                                         //Timer C work with 2x frequency
+  timebase_config.Mode = HRTIM_MODE_SINGLESHOT_RETRIGGERABLE;
+  HAL_HRTIM_TimeBaseConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_C, &timebase_config);//trigering ADC
+  
   
   /* ---------------------------------------------------------- */
   /* Master timer initialization                                */
@@ -271,6 +369,19 @@ static void HRTIM_Config_HalfMode(uint32_t frequency)
   timer_config.RepetitionUpdate = HRTIM_UPDATEONREPETITION_ENABLED;
   timer_config.InterruptRequests = HRTIM_MASTER_IT_NONE;
   HAL_HRTIM_WaveformTimerConfig(&hhrtim, HRTIM_TIMERINDEX_MASTER, &timer_config);
+ 
+  compare_config.CompareValue = (5 * frequency)/100;
+  HAL_HRTIM_WaveformCompareConfig(&hhrtim,
+                                  HRTIM_TIMERINDEX_MASTER,
+                                  HRTIM_COMPAREUNIT_2,
+                                  &compare_config);
+
+  /* Compare 3 is used for SR2 turn-on */
+  compare_config.CompareValue = (55 * frequency)/100;
+  HAL_HRTIM_WaveformCompareConfig(&hhrtim,
+                                  HRTIM_TIMERINDEX_MASTER,
+                                  HRTIM_COMPAREUNIT_3,
+                                  &compare_config);
   
   /* --------------------------------------------------------------------- */
   /* TIMERD global configuration: all values to default                    */
@@ -285,7 +396,7 @@ static void HRTIM_Config_HalfMode(uint32_t frequency)
   timer_config.BurstMode = HRTIM_TIMERBURSTMODE_MAINTAINCLOCK;
   timer_config.RepetitionUpdate = HRTIM_UPDATEONREPETITION_DISABLED;
   timer_config.ResetUpdate = HRTIM_TIMUPDATEONRESET_DISABLED;
-  timer_config.InterruptRequests = HRTIM_TIM_IT_REP;
+  timer_config.InterruptRequests = HRTIM_TIM_IT_NONE;
   timer_config.PushPull = HRTIM_TIMPUSHPULLMODE_DISABLED;
   timer_config.FaultEnable = HRTIM_TIMFAULTENABLE_NONE;
   timer_config.FaultLock = HRTIM_TIMFAULTLOCK_READWRITE;
@@ -295,6 +406,7 @@ static void HRTIM_Config_HalfMode(uint32_t frequency)
   timer_config.ResetTrigger = HRTIM_TIMRESETTRIGGER_MASTER_PER + HRTIM_TIMRESETTRIGGER_MASTER_CMP1;
   HAL_HRTIM_WaveformTimerConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_D,&timer_config);
   
+  HAL_HRTIM_WaveformTimerConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_C,&timer_config);
   
   /* --------------------------------------------------------- */
   /* TD1 waveform description TD1 set on period, reset on CMP1 */
@@ -303,50 +415,59 @@ static void HRTIM_Config_HalfMode(uint32_t frequency)
   output_config_TD1.Polarity = HRTIM_OUTPUTPOLARITY_HIGH;
   output_config_TD1.SetSource = HRTIM_OUTPUTSET_MASTERCMP1;
   output_config_TD1.ResetSource  = HRTIM_OUTPUTSET_MASTERPER;
-  output_config_TD1.IdleMode = HRTIM_OUTPUTIDLEMODE_IDLE;
+  output_config_TD1.IdleMode = HRTIM_OUTPUTIDLEMODE_NONE;
   output_config_TD1.IdleLevel = HRTIM_OUTPUTIDLELEVEL_INACTIVE;
-  output_config_TD1.FaultLevel = HRTIM_OUTPUTFAULTLEVEL_NONE;
+  output_config_TD1.FaultLevel = HRTIM_OUTPUTFAULTLEVEL_INACTIVE;
   output_config_TD1.ChopperModeEnable = HRTIM_OUTPUTCHOPPERMODE_DISABLED;
-  output_config_TD1.BurstModeEntryDelayed = HRTIM_OUTPUTBURSTMODEENTRY_DELAYED;
+  output_config_TD1.BurstModeEntryDelayed = HRTIM_OUTPUTBURSTMODEENTRY_REGULAR;
   HAL_HRTIM_WaveformOutputConfig(&hhrtim,
                                  HRTIM_TIMERINDEX_TIMER_D,
-                                 HRTIM_OUTPUT_TD1,              //HRTIM1_CHD1 PB14
+                                 HRTIM_OUTPUT_TD1,                              //HRTIM1_CHD1 PB14
                                  &output_config_TD1);
 
-  /* Set compare registers for duty cycle on TD1 */
+  /* Set compare registers for turn-off time on TB1 */
   compare_config.AutoDelayedMode = HRTIM_AUTODELAYEDMODE_REGULAR;
   compare_config.AutoDelayedTimeout = 0;
-  compare_config.CompareValue = (85*frequency)/100;     // 85% duty cycle
+  compare_config.CompareValue = (25 * frequency)/200;                           //Set 1st adc triger to 12.5% and 62.5% of period (45 and 225 degrees)
   HAL_HRTIM_WaveformCompareConfig(&hhrtim,
-                                  HRTIM_TIMERINDEX_TIMER_D,
+                                  HRTIM_TIMERINDEX_TIMER_C,
                                   HRTIM_COMPAREUNIT_2,
                                   &compare_config);
+
+  /* Set compare 3 for sampling before turn-on on SR1 */
+  compare_config.AutoDelayedMode = HRTIM_AUTODELAYEDMODE_REGULAR;
+  compare_config.AutoDelayedTimeout = 0;
+  compare_config.CompareValue = (50 * frequency)/200;                           //Set 2nd adc triger to 25% and 75% of period (90 and 270 degrees)
+  HAL_HRTIM_WaveformCompareConfig(&hhrtim,
+                                  HRTIM_TIMERINDEX_TIMER_C,
+                                  HRTIM_COMPAREUNIT_3,
+                                  &compare_config);
+
+  /* Set compare 4 for sampling before turn-off on SR1 */
+  compare_config.AutoDelayedMode = HRTIM_AUTODELAYEDMODE_REGULAR;
+  compare_config.AutoDelayedTimeout = 0;
+  compare_config.CompareValue = (75 * frequency)/200;                           //Set 2nd adc triger to 37.5% and 87.5% of period (135 and 315 degrees)
+  HAL_HRTIM_WaveformCompareConfig(&hhrtim,
+                                  HRTIM_TIMERINDEX_TIMER_C,
+                                  HRTIM_COMPAREUNIT_4,
+                                  &compare_config);
+ 
+ 
+  adc_trigger_config.Trigger = HRTIM_ADCTRIGGEREVENT24_TIMERC_CMP2
+                             + HRTIM_ADCTRIGGEREVENT24_TIMERC_CMP3
+                             + HRTIM_ADCTRIGGEREVENT24_TIMERC_CMP4
+                             + HRTIM_ADCTRIGGEREVENT24_TIMERC_PERIOD;           //Set reset event as adc triger to 50% and 100% of period (180 and 360 degrees)
+  adc_trigger_config.UpdateSource = HRTIM_ADCTRIGGERUPDATE_TIMER_C;
   
-/*              NOT USED                */
-//    /* Set compare registers for duty cycle on TD1 */
-//  compare_config.AutoDelayedMode = HRTIM_AUTODELAYEDMODE_REGULAR;
-//  compare_config.AutoDelayedTimeout = 0;
-//  compare_config.CompareValue = MIN_FRQUENCY/2;     // 50% duty cycle
-//  HAL_HRTIM_WaveformCompareConfig(&hhrtim,
-//                                  HRTIM_TIMERINDEX_TIMER_D,
-//                                  HRTIM_COMPAREUNIT_3,
-//                                  &compare_config);
-//  
-//    /* Set compare registers for duty cycle on TD1 */
-//  compare_config.AutoDelayedMode = HRTIM_AUTODELAYEDMODE_REGULAR;
-//  compare_config.AutoDelayedTimeout = 0;
-//  compare_config.CompareValue = MIN_FRQUENCY/4;     // 25% duty cycle
-//  HAL_HRTIM_WaveformCompareConfig(&hhrtim,
-//                                  HRTIM_TIMERINDEX_TIMER_D,
-//                                  HRTIM_COMPAREUNIT_4,
-//                                  &compare_config);
-  
-  adc_trigger_config.Trigger = HRTIM_ADCTRIGGEREVENT24_TIMERD_CMP2;     //Set ADC event source TIMER D CMP2
-                             //+ HRTIM_ADCTRIGGEREVENT24_TIMERD_CMP3
-                             //+ HRTIM_ADCTRIGGEREVENT24_TIMERD_CMP4
-                             //+HRTIM_ADCTRIGGEREVENT24_TIMERD_RESET;
-  adc_trigger_config.UpdateSource = HRTIM_ADCTRIGGERUPDATE_TIMER_D;
   HAL_HRTIM_ADCTriggerConfig(&hhrtim, HRTIM_ADCTRIGGER_2, &adc_trigger_config);
+  
+  HAL_HRTIM_SoftwareUpdate(&hhrtim,
+                        HRTIM_TIMERUPDATE_MASTER
+                      + HRTIM_TIMERUPDATE_A
+                      + HRTIM_TIMERUPDATE_B
+                      + HRTIM_TIMERUPDATE_C
+                      + HRTIM_TIMERUPDATE_D
+                      + HRTIM_TIMERUPDATE_E);
 }
 
 /**
@@ -435,6 +556,7 @@ void ADC_Config(void)
   */
 void Start_Driver(void)
 {  
+  measurement_done = 0;
   
   hhrtim.Instance->sMasterRegs.MCNTR = 0x0000;
   hhrtim.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_C].CNTxR = 0x0000;
@@ -451,12 +573,12 @@ void Start_Driver(void)
     //HAL_HRTIM_BurstModeCtl(&hhrtim, HRTIM_BURSTMODECTL_ENABLED);
   /* Start HRTIM's TIMER D*/
   //HAL_HRTIM_WaveformCounterStart_IT(&hhrtim, HRTIM_TIMERID_TIMER_D);
-  /* Start HRTIM's Master timer, TIMER A and B */
-  hhrtim.Instance->sCommonRegs.CR2 = (HRTIM_TIMERRESET_MASTER|HRTIM_TIMERRESET_TIMER_D | HRTIM_TIMERUPDATE_MASTER|HRTIM_TIMERUPDATE_D);
-  //HAL_HRTIM_WaveformCounterStart_IT(&hhrtim, HRTIM_TIMERID_MASTER | HRTIM_TIMERID_TIMER_C | HRTIM_TIMERID_TIMER_D);
-  hhrtim.Instance->sMasterRegs.MCR |= (HRTIM_TIMERID_MASTER | HRTIM_TIMERID_TIMER_D);
   
-  //hhrtim.Instance->sMasterRegs.MDIER |= HRTIM_TIMERID_TIMER_D;
+  /* Start HRTIM's Master timer, TIMER A and B */
+  //hhrtim.Instance->sCommonRegs.CR2 = (HRTIM_TIMERRESET_MASTER|HRTIM_TIMERRESET_TIMER_D | HRTIM_TIMERUPDATE_MASTER|HRTIM_TIMERUPDATE_D);
+  //hhrtim.Instance->sMasterRegs.MCR |= (HRTIM_TIMERID_MASTER | HRTIM_TIMERID_TIMER_D);
+  hhrtim.Instance->sCommonRegs.CR2 = (HRTIM_TIMERRESET_MASTER|HRTIM_TIMERRESET_TIMER_C|HRTIM_TIMERRESET_TIMER_D | HRTIM_TIMERUPDATE_MASTER|HRTIM_TIMERUPDATE_C|HRTIM_TIMERUPDATE_D);
+  hhrtim.Instance->sMasterRegs.MCR |= (HRTIM_TIMERID_MASTER | HRTIM_TIMERID_TIMER_C | HRTIM_TIMERID_TIMER_D);
   
   //This delay is nedded! It is aganist transient state on HRTIM driver
   //HAL_Delay(1);

@@ -2,42 +2,45 @@
 #include "rezonans_detector.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
+#define UPPER_FREQUENCY 2000    //200kHz
+#define LOWER_FREQUENCY  705    //70.5kHz This parameter depend on MULTIPLER parameter in control_defines.h
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-uint32_t value = 1100;
+uint32_t value = UPPER_FREQUENCY;
 uint32_t Detection_in_progress = 1;
 uint32_t measurement_done;
 int32_t counter;
 uint32_t adc_sample[64];
 
+volatile float phase_offset;
+volatile uint32_t phase_shift;
 
-#define start_timer()   *((volatile uint32_t*)0xE0001000) = 0x40000001  // Enable CYCCNT register
-#define stop_timer()    *((volatile uint32_t*)0xE0001000) = 0x40000000  // Disable CYCCNT register
-#define get_timer()     *((volatile uint32_t*)0xE0001004)               // Get value from CYCCNT register
 uint32_t it1, it2;      // start and stop flag
-
 
 struct RezonansValue {
   uint32_t main_frequency_power;
   uint32_t frequency;
 } rezonans_value;
 
+  float T = 0;
+  float T2 = 0;
+  float angle_float = 0;
 uint32_t real_frequency = 0;
 //uint32_t best_value[2];
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
-
+  uint16_t angle;
 uint32_t rezonans_detector()
 {
-  uint32_t frequency = 4608000/value;
+  uint32_t frequency = (HRTIM_OUPUT_CLOCK_KHZ)/value;
   int16_t complex[64][2];
   int32_t P16;
+  int32_t P15;
   rezonans_value.frequency = 0;
   rezonans_value.main_frequency_power = 0;
   
   uint32_t ifftFlag = 0;
   uint32_t doBitReverse = 1;
-  uint16_t angle;
   
   // inicjalizacja peryferium pod skanowanie (pojedynczy strzal z burst mode ustalonym na 4sygnaly)
   HRTIM_Config_rezonans_detector(frequency);
@@ -53,8 +56,11 @@ uint32_t rezonans_detector()
     if(measurement_done)
     {
       
-      start_timer();          // start the timer.
-      it1 = get_timer();      // store current cycle-count in a local
+//      start_timer();          // start the timer.
+//      it1 = get_timer();      // store current cycle-count in a local
+      
+//      it2 = get_timer() - it1;    // Derive the cycle-count difference
+//      stop_timer();               // If timer is not needed any more, stop 
       
       for(int32_t i = 0; i < 64; i++)
       {
@@ -69,36 +75,60 @@ uint32_t rezonans_detector()
       complex[16][0] = complex[16][0] < 0 ? -complex[16][0] : complex[16][0];
       complex[16][1] = complex[16][1] < 0 ? -complex[16][1] : complex[16][1];
       P16 = complex[16][0]*complex[16][0] + complex[16][1]*complex[16][1];
+      
+      complex[15][0] = complex[15][0] < 0 ? -complex[15][0] : complex[15][0];
+      complex[15][1] = complex[15][1] < 0 ? -complex[15][1] : complex[15][1];
+      P15 = complex[15][0]*complex[15][0] + complex[15][1]*complex[15][1];
 
+      //Babylonian method
       uint32_t j = 1;
       uint32_t temp = P16;
       while(P16 > j)
       {
         P16 = (P16 + j)/2;
         j = temp/P16;
-      }      
+      }
+
+      //Babylonian method
+      j = 1;
+      temp = P15;
+      while(P15 > j)
+      {
+        P15 = (P15 + j)/2;
+        j = temp/P15;
+      }          
       
-      if(rezonans_value.main_frequency_power < P16 && angle > 0x8000)
+      // compute offset angle
+      phase_offset = 2*M_PI*value*100*0.000002f; // 2 times of delays and dead time
+      phase_shift = (uint32_t)((phase_offset*0xFFFF)/(2*M_PI)); // convert float domain to Q16 atan2 domain
+      
+      //conditions:
+      //1. resonant frequency have highest power in scan fft
+      //2. angle must be higher that pi + offset (deat time + delay on transoptor, driver etc.)
+      //3. min power of resonant frequency in fft (depent on physical circuit!!!)
+      if(rezonans_value.main_frequency_power < P16 && angle > (0x8000+phase_shift) && (P16 > 150))
       {
         rezonans_value.main_frequency_power = P16;
         rezonans_value.frequency = value;
       } 
-      
-      float float_temp = 1/((1/(float)rezonans_value.frequency) - 0.00005);
-      real_frequency = (uint32_t)float_temp; 
-
-      it2 = get_timer() - it1;    // Derive the cycle-count difference
-      stop_timer();               // If timer is not needed any more, stop  
-      
-        HAL_Delay(5);
-
-      value -= 1;
-      if(value <= 705)
+      // detect if we are belowe resonant frequency
+      if((rezonans_value.frequency != 0 && angle < (0x8000+phase_shift) && angle > 0x8000))
       {
-        value = 1100;
         Detection_in_progress = 0;
       }
-      frequency = 46080000/value;
+      
+      real_frequency = rezonans_value.frequency;
+
+      HAL_Delay(20); //delay beatween detector waves
+
+      value -= 1;
+      // if true detector not find resonant
+      if(value <= LOWER_FREQUENCY)
+      {
+        value = UPPER_FREQUENCY;
+        Detection_in_progress = 0;
+      }
+      frequency = HRTIM_OUPUT_CLOCK_KHZ/value;
       
       //Set new ADC triger
       __HAL_HRTIM_SETCOMPARE(&hhrtim, HRTIM_TIMERINDEX_TIMER_C, HRTIM_COMPAREUNIT_2, (25 * frequency)/200);
@@ -119,7 +149,7 @@ uint32_t rezonans_detector()
     }
   }
   Stop_Detector();
-  return (46080000/(real_frequency));
+  return (HRTIM_OUPUT_CLOCK_KHZ/(real_frequency));
 }
 
 /**
@@ -154,7 +184,19 @@ static void HRTIM_Config_rezonans_detector(uint32_t frequency)
   /* ------------------------------------------------------------ */
   timebase_config.Period = frequency;                                           //start frequency value
   timebase_config.RepetitionCounter = 0;                                        //Event rate divider
-  timebase_config.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
+  switch(MULTIPLER)
+  {
+    case 32:
+      timebase_config.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL32;
+      break;
+      
+    case 16:
+    timebase_config.PrescalerRatio = HRTIM_PRESCALERRATIO_MUL16;
+     break;
+     
+    default:
+      while(1){};
+  }
   timebase_config.Mode = HRTIM_MODE_CONTINUOUS;
   HAL_HRTIM_TimeBaseConfig(&hhrtim, HRTIM_TIMERINDEX_MASTER, &timebase_config);
   HAL_HRTIM_TimeBaseConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_D, &timebase_config);// half bridge control

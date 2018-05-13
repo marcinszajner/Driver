@@ -8,7 +8,7 @@
 #include "control_defines.h"
 #include "arm_math.h"
 #include "arm_const_structs.h"
-#include "arm_math.h"
+#include "fxpt_atan2.h"
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
@@ -28,6 +28,9 @@ extern HRTIM_OutputCfgTypeDef output_config_TD1;
 extern HRTIM_BurstModeCfgTypeDef burst_mode_config;
 extern HRTIM_CompareCfgTypeDef compare_config;
 extern HRTIM_ADCTriggerCfgTypeDef adc_trigger_config;
+extern uint32_t measurement_done;
+extern uint32_t adc_sample[64];
+extern uint32_t it1, it2;      // start and stop flag
 
 extern ADC_MultiModeTypeDef MultiModeConfig;
 extern ADC_InjectionConfTypeDef InjectionConfig;

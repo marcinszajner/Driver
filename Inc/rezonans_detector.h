@@ -8,6 +8,12 @@
 #include "arm_const_structs.h"
 #include "fxpt_atan2.h"
 
+#define start_timer()   *((volatile uint32_t*)0xE0001000) = 0x40000001  // Enable CYCCNT register
+#define stop_timer()    *((volatile uint32_t*)0xE0001000) = 0x40000000  // Disable CYCCNT register
+#define get_timer()     *((volatile uint32_t*)0xE0001004)               // Get value from CYCCNT register
+
+#define M_PI 3.14159265358979323846f
+
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
